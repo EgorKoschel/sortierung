@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sortierung/sortierung.dart';
 import 'dart:core';
+import 'dart:isolate';
 
 void main() {
   runApp(const MyApp());
@@ -25,6 +26,7 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
+
   final String title;
 
   @override
@@ -41,12 +43,12 @@ class _MyHomePageState extends State<MyHomePage> {
   final controllerLength = TextEditingController(text: '10');
   final controllerMaxValue = TextEditingController(text: '100');
   final controllerRepeat = TextEditingController(text: '1');
-
   Duration? timeBubbleSort;
   Duration? timeSelectionSort;
   Duration? timeInsertionSort;
   Duration? timeQuickSort;
   Duration? timeMergeSort;
+  bool isSorting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +75,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: SizedBox(
                       width: 110,
                       child: TextField(
-                        maxLength: 2,
+                        maxLength: 7,
                         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         controller: controllerLength,
                         decoration: const InputDecoration(
@@ -103,8 +105,10 @@ class _MyHomePageState extends State<MyHomePage> {
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Text(
+                  maxLines: 5,
                   list.isEmpty ? 'Bitte geben Sie die Länge und den maximalen Wert des Arrays ein.' : list.toString(),
                   style: Theme.of(context).textTheme.bodyLarge,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               Padding(
@@ -113,6 +117,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     onPressed: () {
                       final int length = int.tryParse(controllerLength.text) ?? 0;
                       final int maxValue = int.tryParse(controllerMaxValue.text) ?? 0;
+
                       setState(() {
                         list = Sortierung.generateRandomList(length, maxValue: maxValue);
                         timeBubbleSort = null;
@@ -151,112 +156,113 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     ElevatedButton(
-                        onPressed: () {
-                          final repeat = int.tryParse(controllerRepeat.text) ?? 1;
-                          setState(() {
-                            final stopwatch = Stopwatch()..start();
-                            for (int i = 0; i < repeat; i++) {
-                              sortedListBubble = Sortierung.bubbleSort(list);
-                            }
-                            timeBubbleSort = stopwatch.elapsed;
+                      onPressed: isSorting
+                          ? null
+                          : () async {
+                              setState(() {
+                                isSorting = true;
+                              });
 
-                            stopwatch.reset();
-                            stopwatch.start();
-                            for (int i = 0; i < repeat; i++) {
-                              sortedListSelection = Sortierung.selectionSort(list);
-                            }
-                            timeSelectionSort = stopwatch.elapsed;
+                              final repeat = int.tryParse(controllerRepeat.text) ?? 1;
+                              final result = await _sortList(list, repeat);
 
-                            stopwatch.reset();
-                            stopwatch.start();
-                            for (int i = 0; i < repeat; i++) {
-                              sortedListInsertion = Sortierung.insertionSort(list);
-                            }
-                            timeInsertionSort = stopwatch.elapsed;
-
-                            stopwatch.reset();
-                            stopwatch.start();
-                            for (int i = 0; i < repeat; i++) {
-                              sortedListQuick = Sortierung.quickSort(list);
-                            }
-                            timeQuickSort = stopwatch.elapsed;
-
-                            stopwatch.reset();
-                            stopwatch.start();
-                            for (int i = 0; i < repeat; i++) {
-                              sortedListMerge = Sortierung.mergeSort(list);
-                            }
-                            timeMergeSort = stopwatch.elapsed;
-                          });
-                        },
-                        child: const Text('Sort')),
+                              setState(() {
+                                sortedListBubble = result['bubbleSort']!;
+                                timeBubbleSort = result['bubbleSortTime']!;
+                                sortedListSelection = result['selectionSort']!;
+                                timeSelectionSort = result['selectionSortTime']!;
+                                sortedListInsertion = result['insertionSort']!;
+                                timeInsertionSort = result['insertionSortTime']!;
+                                sortedListQuick = result['quickSort']!;
+                                timeQuickSort = result['quickSortTime']!;
+                                sortedListMerge = result['mergeSort']!;
+                                timeMergeSort = result['mergeSortTime']!;
+                                isSorting = false;
+                              });
+                            },
+                      child: const Text('Sort'),
+                    ),
+                    if (isSorting)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 8.0),
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.0,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-              if (timeBubbleSort != null)
-                Column(
-                  children: [
-                    const Divider(),
-                    Text(timeBubbleSort!.inMilliseconds == 0
-                        ? 'Bubble Sort: ${timeBubbleSort!.inMicroseconds} µs'
-                        : timeBubbleSort!.inSeconds == 0
-                            ? 'Bubble Sort: ${timeBubbleSort!.inMilliseconds} ms'
-                            : 'Bubble Sort: ${timeBubbleSort!.inSeconds} s, ${timeBubbleSort!.inMilliseconds.remainder(1000)} ms'),
-                    Text('Sorted List: $sortedListBubble', maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
+              if (timeBubbleSort != null) _buildResultDisplay('Bubble Sort', timeBubbleSort!, sortedListBubble),
               if (timeSelectionSort != null)
-                Column(
-                  children: [
-                    const Divider(),
-                    Text(timeSelectionSort!.inMilliseconds == 0
-                        ? 'Bubble Sort: ${timeSelectionSort!.inMicroseconds} µs'
-                        : timeSelectionSort!.inSeconds == 0
-                            ? 'Bubble Sort: ${timeSelectionSort!.inMilliseconds} ms'
-                            : 'Bubble Sort: ${timeSelectionSort!.inSeconds} s, ${timeSelectionSort!.inMilliseconds.remainder(1000)} ms'),
-                    Text('Sorted List: $sortedListSelection', maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
+                _buildResultDisplay('Selection Sort', timeSelectionSort!, sortedListSelection),
               if (timeInsertionSort != null)
-                Column(
-                  children: [
-                    const Divider(),
-                    Text(timeInsertionSort!.inMilliseconds == 0
-                        ? 'Bubble Sort: ${timeInsertionSort!.inMicroseconds} µs'
-                        : timeInsertionSort!.inSeconds == 0
-                            ? 'Bubble Sort: ${timeInsertionSort!.inMilliseconds} ms'
-                            : 'Bubble Sort: ${timeInsertionSort!.inSeconds} s, ${timeInsertionSort!.inMilliseconds.remainder(1000)} ms'),
-                    Text('Sorted List: $sortedListInsertion', maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-              if (timeQuickSort != null)
-                Column(
-                  children: [
-                    const Divider(),
-                    Text(timeQuickSort!.inMilliseconds == 0
-                        ? 'Bubble Sort: ${timeQuickSort!.inMicroseconds} µs'
-                        : timeQuickSort!.inSeconds == 0
-                            ? 'Bubble Sort: ${timeQuickSort!.inMilliseconds} ms'
-                            : 'Bubble Sort: ${timeQuickSort!.inSeconds} s, ${timeQuickSort!.inMilliseconds.remainder(1000)} ms'),
-                    Text('Sorted List: $sortedListQuick', maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-              if (timeMergeSort != null)
-                Column(
-                  children: [
-                    const Divider(),
-                    Text(timeMergeSort!.inMilliseconds == 0
-                        ? 'Bubble Sort: ${timeMergeSort!.inMicroseconds} µs'
-                        : timeMergeSort!.inSeconds == 0
-                            ? 'Bubble Sort: ${timeMergeSort!.inMilliseconds} ms'
-                            : 'Bubble Sort: ${timeMergeSort!.inSeconds} s, ${timeMergeSort!.inMilliseconds.remainder(1000)} ms'),
-                    Text('Sorted List: $sortedListMerge', maxLines: 2, overflow: TextOverflow.ellipsis),
-                  ],
-                ),
+                _buildResultDisplay('Insertion Sort', timeInsertionSort!, sortedListInsertion),
+              if (timeQuickSort != null) _buildResultDisplay('Quick Sort', timeQuickSort!, sortedListQuick),
+              if (timeMergeSort != null) _buildResultDisplay('Merge Sort', timeMergeSort!, sortedListMerge),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _sortList(List<int> list, int repeat) async {
+    return await Isolate.run(() {
+      final Map<String, dynamic> result = {};
+      final stopwatch = Stopwatch()..start();
+
+      for (int i = 0; i < repeat; i++) {
+        result['bubbleSort'] = Sortierung.bubbleSort(list);
+      }
+      result['bubbleSortTime'] = stopwatch.elapsed;
+      stopwatch.reset();
+      stopwatch.start();
+
+      for (int i = 0; i < repeat; i++) {
+        result['selectionSort'] = Sortierung.selectionSort(list);
+      }
+      result['selectionSortTime'] = stopwatch.elapsed;
+      stopwatch.reset();
+      stopwatch.start();
+
+      for (int i = 0; i < repeat; i++) {
+        result['insertionSort'] = Sortierung.insertionSort(list);
+      }
+      result['insertionSortTime'] = stopwatch.elapsed;
+      stopwatch.reset();
+      stopwatch.start();
+
+      for (int i = 0; i < repeat; i++) {
+        result['quickSort'] = Sortierung.quickSort(list);
+      }
+      result['quickSortTime'] = stopwatch.elapsed;
+      stopwatch.reset();
+      stopwatch.start();
+
+      for (int i = 0; i < repeat; i++) {
+        result['mergeSort'] = Sortierung.mergeSort(list);
+      }
+      result['mergeSortTime'] = stopwatch.elapsed;
+
+      return result;
+    });
+  }
+
+  Widget _buildResultDisplay(String sortName, Duration time, List<int> sortedList) {
+    return Column(
+      children: [
+        const Divider(),
+        Text(time.inMilliseconds == 0
+            ? '$sortName: ${time.inMicroseconds} µs'
+            : time.inSeconds == 0
+                ? '$sortName: ${time.inMilliseconds} ms'
+                : '$sortName: ${time.inSeconds} s, ${time.inMilliseconds.remainder(1000)} ms'),
+        Text('Sorted List: $sortedList', maxLines: 2, overflow: TextOverflow.ellipsis),
+      ],
     );
   }
 }
