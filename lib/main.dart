@@ -4,6 +4,8 @@ import 'package:sortierung/sortierung.dart';
 import 'dart:core';
 import 'dart:isolate';
 
+import 'expandable_text.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -35,11 +37,11 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   List<int> list = [];
-  List<int> sortedListBubble = [];
-  List<int> sortedListSelection = [];
-  List<int> sortedListInsertion = [];
-  List<int> sortedListQuick = [];
-  List<int> sortedListMerge = [];
+  List<int>? sortedListBubble = [];
+  List<int>? sortedListSelection = [];
+  List<int>? sortedListInsertion = [];
+  List<int>? sortedListQuick = [];
+  List<int>? sortedListMerge = [];
   final controllerLength = TextEditingController(text: '10');
   final controllerMaxValue = TextEditingController(text: '100');
   final controllerRepeat = TextEditingController(text: '1');
@@ -49,6 +51,13 @@ class _MyHomePageState extends State<MyHomePage> {
   Duration? timeQuickSort;
   Duration? timeMergeSort;
   bool isSorting = false;
+  Map<String, bool> sortOptions = {
+    'Bubble Sort': false,
+    'Selection Sort': false,
+    'Insertion Sort': false,
+    'Quick Sort': false,
+    'Merge Sort': false,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +84,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: SizedBox(
                       width: 110,
                       child: TextField(
-                        maxLength: 7,
+                        maxLength: 5,
                         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                         controller: controllerLength,
                         decoration: const InputDecoration(
@@ -104,9 +113,11 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               Padding(
                 padding: const EdgeInsets.all(8.0),
-                child: Text(
+                child: ExpandableText(
                   maxLines: 5,
-                  list.isEmpty ? 'Bitte geben Sie die Länge und den maximalen Wert des Arrays ein.' : list.toString(),
+                  text: list.isEmpty
+                      ? 'Bitte geben Sie die Länge und den maximalen Wert des Arrays ein.'
+                      : list.toString(),
                   style: Theme.of(context).textTheme.bodyLarge,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -116,7 +127,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: ElevatedButton(
                     onPressed: () {
                       final int length = int.tryParse(controllerLength.text) ?? 0;
-                      final int maxValue = int.tryParse(controllerMaxValue.text) ?? 0;
+                      final int maxValue = (int.tryParse(controllerMaxValue.text) ?? 0) + 1;
 
                       setState(() {
                         list = Sortierung.generateRandomList(length, maxValue: maxValue);
@@ -127,82 +138,86 @@ class _MyHomePageState extends State<MyHomePage> {
                         timeMergeSort = null;
                       });
                     },
-                    child: const Text('Generate Random List')),
+                    child: const Text('Generate Random Array')),
               ),
               Visibility(
                 visible: list.isNotEmpty,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Repeat:',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: SizedBox(
-                        width: 130,
-                        child: TextField(
-                          maxLength: 10,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          controller: controllerRepeat,
-                          decoration: const InputDecoration(
-                            labelText: 'Repeat',
-                            floatingLabelBehavior: FloatingLabelBehavior.auto,
-                            counterText: '',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
-                          ),
-                        ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Repeat:',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                    ),
-                    ElevatedButton(
-                      onPressed: isSorting
-                          ? null
-                          : () async {
-                              setState(() {
-                                isSorting = true;
-                              });
-
-                              final repeat = int.tryParse(controllerRepeat.text) ?? 1;
-                              final result = await _sortList(list, repeat);
-
-                              setState(() {
-                                sortedListBubble = result['bubbleSort']!;
-                                timeBubbleSort = result['bubbleSortTime']!;
-                                sortedListSelection = result['selectionSort']!;
-                                timeSelectionSort = result['selectionSortTime']!;
-                                sortedListInsertion = result['insertionSort']!;
-                                timeInsertionSort = result['insertionSortTime']!;
-                                sortedListQuick = result['quickSort']!;
-                                timeQuickSort = result['quickSortTime']!;
-                                sortedListMerge = result['mergeSort']!;
-                                timeMergeSort = result['mergeSortTime']!;
-                                isSorting = false;
-                              });
-                            },
-                      child: const Text('Sort'),
-                    ),
-                    if (isSorting)
-                      const Padding(
-                        padding: EdgeInsets.only(left: 8.0),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.0,
+                          width: 130,
+                          child: TextField(
+                            maxLength: 4,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            controller: controllerRepeat,
+                            decoration: const InputDecoration(
+                              labelText: 'Repeat',
+                              floatingLabelBehavior: FloatingLabelBehavior.auto,
+                              counterText: '',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+                            ),
                           ),
                         ),
                       ),
-                  ],
+                      ElevatedButton(
+                        onPressed: isSorting || sortOptions.values.every((element) => !element)
+                            ? null
+                            : () async {
+                                setState(() {
+                                  isSorting = true;
+                                });
+
+                                final repeat = int.tryParse(controllerRepeat.text) ?? 1;
+                                final result = await _sortList(list, repeat, sortOptions);
+
+                                setState(() {
+                                  sortedListBubble = result['bubbleSort'];
+                                  timeBubbleSort = result['bubbleSortTime'];
+                                  sortedListSelection = result['selectionSort'];
+                                  timeSelectionSort = result['selectionSortTime'];
+                                  sortedListInsertion = result['insertionSort'];
+                                  timeInsertionSort = result['insertionSortTime'];
+                                  sortedListQuick = result['quickSort'];
+                                  timeQuickSort = result['quickSortTime'];
+                                  sortedListMerge = result['mergeSort'];
+                                  timeMergeSort = result['mergeSortTime'];
+                                  isSorting = false;
+                                });
+                              },
+                        child: const Text('Sort'),
+                      ),
+                      if (isSorting)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 8.0),
+                          child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.0,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-              if (timeBubbleSort != null) _buildResultDisplay('Bubble Sort', timeBubbleSort!, sortedListBubble),
+              _buildSortCheckboxes(),
+              if (timeBubbleSort != null) _buildResultDisplay('Bubble Sort', timeBubbleSort!, sortedListBubble!),
               if (timeSelectionSort != null)
-                _buildResultDisplay('Selection Sort', timeSelectionSort!, sortedListSelection),
+                _buildResultDisplay('Selection Sort', timeSelectionSort!, sortedListSelection!),
               if (timeInsertionSort != null)
-                _buildResultDisplay('Insertion Sort', timeInsertionSort!, sortedListInsertion),
-              if (timeQuickSort != null) _buildResultDisplay('Quick Sort', timeQuickSort!, sortedListQuick),
-              if (timeMergeSort != null) _buildResultDisplay('Merge Sort', timeMergeSort!, sortedListMerge),
+                _buildResultDisplay('Insertion Sort', timeInsertionSort!, sortedListInsertion!),
+              if (timeQuickSort != null) _buildResultDisplay('Quick Sort', timeQuickSort!, sortedListQuick!),
+              if (timeMergeSort != null) _buildResultDisplay('Merge Sort', timeMergeSort!, sortedListMerge!),
             ],
           ),
         ),
@@ -210,43 +225,86 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<Map<String, dynamic>> _sortList(List<int> list, int repeat) async {
+  Visibility _buildSortCheckboxes() {
+    return Visibility(
+      visible: list.isNotEmpty,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text('Sorts:', style: TextStyle(fontSize: 16)),
+          for (final sortName in sortOptions.keys)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: sortOptions[sortName],
+                    onChanged: isSorting
+                        ? null
+                        : (value) {
+                            setState(() {
+                              sortOptions[sortName] = value!;
+                            });
+                          },
+                  ),
+                  Text(sortName),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _sortList(List<int> list, int repeat, Map<String, bool> sortOptions) async {
     return await Isolate.run(() {
       final Map<String, dynamic> result = {};
-      final stopwatch = Stopwatch()..start();
+      final stopwatch = Stopwatch();
 
-      for (int i = 0; i < repeat; i++) {
-        result['bubbleSort'] = Sortierung.bubbleSort(list);
+      if (sortOptions['Bubble Sort']!) {
+        stopwatch.start();
+        for (int i = 0; i < repeat; i++) {
+          result['bubbleSort'] = Sortierung.bubbleSort(list);
+        }
+        result['bubbleSortTime'] = stopwatch.elapsed;
+        stopwatch.reset();
       }
-      result['bubbleSortTime'] = stopwatch.elapsed;
-      stopwatch.reset();
-      stopwatch.start();
 
-      for (int i = 0; i < repeat; i++) {
-        result['selectionSort'] = Sortierung.selectionSort(list);
+      if (sortOptions['Selection Sort']!) {
+        stopwatch.start();
+        for (int i = 0; i < repeat; i++) {
+          result['selectionSort'] = Sortierung.selectionSort(list);
+        }
+        result['selectionSortTime'] = stopwatch.elapsed;
+        stopwatch.reset();
       }
-      result['selectionSortTime'] = stopwatch.elapsed;
-      stopwatch.reset();
-      stopwatch.start();
 
-      for (int i = 0; i < repeat; i++) {
-        result['insertionSort'] = Sortierung.insertionSort(list);
+      if (sortOptions['Insertion Sort']!) {
+        stopwatch.start();
+        for (int i = 0; i < repeat; i++) {
+          result['insertionSort'] = Sortierung.insertionSort(list);
+        }
+        result['insertionSortTime'] = stopwatch.elapsed;
+        stopwatch.reset();
       }
-      result['insertionSortTime'] = stopwatch.elapsed;
-      stopwatch.reset();
-      stopwatch.start();
 
-      for (int i = 0; i < repeat; i++) {
-        result['quickSort'] = Sortierung.quickSort(list);
+      if (sortOptions['Quick Sort']!) {
+        stopwatch.start();
+        for (int i = 0; i < repeat; i++) {
+          result['quickSort'] = Sortierung.quickSort(list);
+        }
+        result['quickSortTime'] = stopwatch.elapsed;
+        stopwatch.reset();
       }
-      result['quickSortTime'] = stopwatch.elapsed;
-      stopwatch.reset();
-      stopwatch.start();
 
-      for (int i = 0; i < repeat; i++) {
-        result['mergeSort'] = Sortierung.mergeSort(list);
+      if (sortOptions['Merge Sort']!) {
+        stopwatch.start();
+        for (int i = 0; i < repeat; i++) {
+          result['mergeSort'] = Sortierung.mergeSort(list);
+        }
+        result['mergeSortTime'] = stopwatch.elapsed;
+        stopwatch.reset();
       }
-      result['mergeSortTime'] = stopwatch.elapsed;
 
       return result;
     });
@@ -261,7 +319,11 @@ class _MyHomePageState extends State<MyHomePage> {
             : time.inSeconds == 0
                 ? '$sortName: ${time.inMilliseconds} ms'
                 : '$sortName: ${time.inSeconds} s, ${time.inMilliseconds.remainder(1000)} ms'),
-        Text('Sorted List: $sortedList', maxLines: 2, overflow: TextOverflow.ellipsis),
+        ExpandableText(
+          text: 'Sorted List: $sortedList',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
       ],
     );
   }
