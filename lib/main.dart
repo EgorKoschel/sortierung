@@ -36,19 +36,14 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   List<int> list = [];
-  List<int>? sortedListBubble = [];
-  List<int>? sortedListSelection = [];
-  List<int>? sortedListInsertion = [];
-  List<int>? sortedListQuick = [];
-  List<int>? sortedListMerge = [];
+  SortResult bubbleSortResult = SortResult(sortName: 'Bubble Sort');
+  SortResult selectionSortResult = SortResult(sortName: 'Selection Sort');
+  SortResult insertionSortResult = SortResult(sortName: 'Insertion Sort');
+  SortResult quickSortResult = SortResult(sortName: 'Quick Sort');
+  SortResult mergeSortResult = SortResult(sortName: 'Merge Sort');
   final controllerLength = TextEditingController(text: '10');
   final controllerMaxValue = TextEditingController(text: '100');
   final controllerRepeat = TextEditingController(text: '1');
-  Duration? timeBubbleSort;
-  Duration? timeSelectionSort;
-  Duration? timeInsertionSort;
-  Duration? timeQuickSort;
-  Duration? timeMergeSort;
   bool isSorting = false;
   Isolate? sortIsolate;
   Map<String, bool> sortOptions = {
@@ -134,11 +129,11 @@ class _MyHomePageState extends State<MyHomePage> {
                     final int maxValue = (int.tryParse(controllerMaxValue.text) ?? 0) + 1;
                     setState(() {
                       list = Sortierung.generateRandomList(length, maxValue: maxValue);
-                      timeBubbleSort = null;
-                      timeSelectionSort = null;
-                      timeInsertionSort = null;
-                      timeQuickSort = null;
-                      timeMergeSort = null;
+                      bubbleSortResult.duration = null;
+                      selectionSortResult.duration = null;
+                      insertionSortResult.duration = null;
+                      quickSortResult.duration = null;
+                      mergeSortResult.duration = null;
                     });
                   },
                   child: const Text('Generate Random Array'),
@@ -181,11 +176,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                   setState(() {
                                     isSorting = true;
                                     setState(() {
-                                      timeBubbleSort = null;
-                                      timeSelectionSort = null;
-                                      timeInsertionSort = null;
-                                      timeQuickSort = null;
-                                      timeMergeSort = null;
+                                      bubbleSortResult.duration = null;
+                                      selectionSortResult.duration = null;
+                                      insertionSortResult.duration = null;
+                                      quickSortResult.duration = null;
+                                      mergeSortResult.duration = null;
                                     });
                                   });
                                   final repeat = int.tryParse(controllerRepeat.text) ?? 1;
@@ -221,13 +216,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
-              if (timeBubbleSort != null) _buildResultDisplay('Bubble Sort', timeBubbleSort!, sortedListBubble!),
-              if (timeSelectionSort != null)
-                _buildResultDisplay('Selection Sort', timeSelectionSort!, sortedListSelection!),
-              if (timeInsertionSort != null)
-                _buildResultDisplay('Insertion Sort', timeInsertionSort!, sortedListInsertion!),
-              if (timeQuickSort != null) _buildResultDisplay('Quick Sort', timeQuickSort!, sortedListQuick!),
-              if (timeMergeSort != null) _buildResultDisplay('Merge Sort', timeMergeSort!, sortedListMerge!),
+              if (bubbleSortResult.duration != null) _buildResultDisplay(bubbleSortResult),
+              if (selectionSortResult.duration != null) _buildResultDisplay(selectionSortResult),
+              if (insertionSortResult.duration != null) _buildResultDisplay(insertionSortResult),
+              if (quickSortResult.duration != null) _buildResultDisplay(quickSortResult),
+              if (mergeSortResult.duration != null) _buildResultDisplay(mergeSortResult),
             ],
           ),
         ),
@@ -272,17 +265,29 @@ class _MyHomePageState extends State<MyHomePage> {
 
     receivePort.listen((data) {
       if (data is Map<String, dynamic>) {
+        final List<Duration?> sortedDurations = [
+          data['bubbleSortTime'],
+          data['selectionSortTime'],
+          data['insertionSortTime'],
+          data['quickSortTime'],
+          data['mergeSortTime'],
+        ]..sort((a, b) => b!.compareTo(a!));
         setState(() {
-          sortedListBubble = data['bubbleSort'];
-          timeBubbleSort = data['bubbleSortTime'];
-          sortedListSelection = data['selectionSort'];
-          timeSelectionSort = data['selectionSortTime'];
-          sortedListInsertion = data['insertionSort'];
-          timeInsertionSort = data['insertionSortTime'];
-          sortedListQuick = data['quickSort'];
-          timeQuickSort = data['quickSortTime'];
-          sortedListMerge = data['mergeSort'];
-          timeMergeSort = data['mergeSortTime'];
+          bubbleSortResult.sortedList = data['bubbleSort'];
+          bubbleSortResult.duration = data['bubbleSortTime'];
+          bubbleSortResult.rank = sortedDurations.indexOf(data['bubbleSortTime']);
+          selectionSortResult.sortedList = data['selectionSort'];
+          selectionSortResult.duration = data['selectionSortTime'];
+          selectionSortResult.rank = sortedDurations.indexOf(data['selectionSortTime']);
+          insertionSortResult.sortedList = data['insertionSort'];
+          insertionSortResult.duration = data['insertionSortTime'];
+          insertionSortResult.rank = sortedDurations.indexOf(data['insertionSortTime']);
+          quickSortResult.sortedList = data['quickSort'];
+          quickSortResult.duration = data['quickSortTime'];
+          quickSortResult.rank = sortedDurations.indexOf(data['quickSortTime']);
+          mergeSortResult.sortedList = data['mergeSort'];
+          mergeSortResult.duration = data['mergeSortTime'];
+          mergeSortResult.rank = sortedDurations.indexOf(data['mergeSortTime']);
           isSorting = false;
         });
       }
@@ -350,21 +355,46 @@ class _MyHomePageState extends State<MyHomePage> {
     sendPort.send(result);
   }
 
-  Widget _buildResultDisplay(String sortName, Duration time, List<int> sortedList) {
+  Widget _buildResultDisplay(SortResult sortResult) {
     return Column(
       children: [
         const Divider(),
-        Text(time.inMilliseconds == 0
-            ? '$sortName: ${time.inMicroseconds} µs'
-            : time.inSeconds == 0
-                ? '$sortName: ${time.inMilliseconds} ms'
-                : '$sortName: ${time.inSeconds} s, ${time.inMilliseconds.remainder(1000)} ms'),
-        ExpandableText(
-          text: 'Sorted List: $sortedList',
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
+        if (sortResult.duration != null)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(sortResult.duration!.inMilliseconds == 0
+                  ? '${sortResult.sortName}: ${sortResult.duration!.inMicroseconds} µs'
+                  : sortResult.duration!.inSeconds == 0
+                      ? '${sortResult.sortName}: ${sortResult.duration!.inMilliseconds} ms'
+                      : '${sortResult.sortName}: ${sortResult.duration!.inSeconds} s, ${sortResult.duration!.inMilliseconds.remainder(1000)} ms'),
+              if (sortResult.rank != null)
+                for (int i = 0; i < sortResult.rank! + 1; i++) const Icon(Icons.star, color: Colors.amber),
+              if (sortResult.rank != null)
+                for (int i = sortResult.rank! + 1; i < 5; i++) const Icon(Icons.star_border, color: Colors.grey),
+            ],
+          ),
+        if (sortResult.sortedList != null)
+          ExpandableText(
+            text: 'Sorted List: ${sortResult.sortedList}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
       ],
     );
   }
+}
+
+class SortResult {
+  final String sortName;
+  Duration? duration;
+  List<int>? sortedList;
+  int? rank;
+
+  SortResult({
+    required this.sortName,
+    this.duration,
+    this.sortedList,
+    this.rank,
+  });
 }
