@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:sortierung/sortierung.dart';
+import 'package:sortierung/classes/sortierung.dart';
 
 void main() {
   test('Test generateRandomList', () {

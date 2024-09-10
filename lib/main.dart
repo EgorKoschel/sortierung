@@ -1,9 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:sortierung/sortierung.dart';
 import 'dart:core';
 import 'dart:isolate';
-import 'expandable_text.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:sortierung/classes/sort_option.dart';
+import 'package:sortierung/classes/sort_result.dart';
+import 'package:sortierung/classes/sortierung.dart';
+import 'package:sortierung/widgets/expandable_text.dart';
 
 void main() {
   runApp(const MyApp());
@@ -48,13 +50,33 @@ class _MyHomePageState extends State<MyHomePage> {
   final controllerRepeat = TextEditingController(text: '1');
   bool isSorting = false;
   Isolate? sortIsolate;
-  Map<String, bool> sortOptions = {
-    'Bubble Sort': false,
-    'Selection Sort': false,
-    'Insertion Sort': false,
-    'Quick Sort': false,
-    'Merge Sort': false,
-  };
+  List<SortOption> sortOptions = [
+    SortOption(
+      sortName: 'Bubble Sort',
+      sortKey: 'bubbleSort',
+      sortFunction: Sortierung.bubbleSort,
+    ),
+    SortOption(
+      sortName: 'Selection Sort',
+      sortKey: 'selectionSort',
+      sortFunction: Sortierung.selectionSort,
+    ),
+    SortOption(
+      sortName: 'Insertion Sort',
+      sortKey: 'insertionSort',
+      sortFunction: Sortierung.insertionSort,
+    ),
+    SortOption(
+      sortName: 'Quick Sort',
+      sortKey: 'quickSort',
+      sortFunction: Sortierung.quickSort,
+    ),
+    SortOption(
+      sortName: 'Merge Sort',
+      sortKey: 'mergeSort',
+      sortFunction: Sortierung.mergeSort,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +190,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       Visibility(
                         visible: !isSorting,
                         child: ElevatedButton(
-                          onPressed: isSorting || sortOptions.values.every((element) => !element)
+                          onPressed: isSorting || sortOptions.every((option) => !option.isChecked)
                               ? null
                               : () async {
                                   setState(() {
@@ -224,22 +246,22 @@ class _MyHomePageState extends State<MyHomePage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Text('Sorts:', style: TextStyle(fontSize: 16)),
-          for (final sortName in sortOptions.keys)
+          for (final option in sortOptions)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: Row(
                 children: [
                   Checkbox(
-                    value: sortOptions[sortName],
+                    value: option.isChecked,
                     onChanged: isSorting
                         ? null
                         : (value) {
                             setState(() {
-                              sortOptions[sortName] = value!;
+                              option.isChecked = value!;
                             });
                           },
                   ),
-                  Text(sortName),
+                  Text(option.sortName),
                 ],
               ),
             ),
@@ -248,7 +270,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<void> _startSort(List<int> list, int repeat, Map<String, bool> sortOptions) async {
+  Future<void> _startSort(List<int> list, int repeat, List<SortOption> sortOptions) async {
     ReceivePort receivePort = ReceivePort();
     sortIsolate = await Isolate.spawn(_sortListInIsolate, [receivePort.sendPort, list, repeat, sortOptions]);
 
@@ -265,11 +287,8 @@ class _MyHomePageState extends State<MyHomePage> {
             : b == null
                 ? -1
                 : b.compareTo(a));
-
         final int maxRank = sortedDurations.where((element) => element != null).length;
-
         _updateSortResults(data, sortedDurations, maxRank);
-
         setState(() {
           isSorting = false;
         });
@@ -278,19 +297,11 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _updateSortResults(Map<String, dynamic> data, List<Duration?> sortedDurations, int maxRank) {
-    List<String> sortKeys = [
-      'bubbleSort',
-      'selectionSort',
-      'insertionSort',
-      'quickSort',
-      'mergeSort',
-    ];
-
     for (int i = 0; i < sortResults.length; i++) {
       sortResults[i]
-        ..sortedList = data[sortKeys[i]]
-        ..duration = data['${sortKeys[i]}Time']
-        ..rank = sortedDurations.indexOf(data['${sortKeys[i]}Time'])
+        ..sortedList = data[sortOptions[i].sortKey]
+        ..duration = data['${sortOptions[i].sortKey}Time']
+        ..rank = sortedDurations.indexOf(data['${sortOptions[i].sortKey}Time'])
         ..maxRank = maxRank;
     }
   }
@@ -316,52 +327,22 @@ class _MyHomePageState extends State<MyHomePage> {
 
   static void _sortListInIsolate(List<dynamic> isolateArguments) {
     final SendPort sendPort = isolateArguments[0];
-    final List<int> list = isolateArguments[1];
+    final List<int> list = List<int>.from(isolateArguments[1]);
     final int repeat = isolateArguments[2];
-    final Map<String, bool> sortOptions = isolateArguments[3];
+    final List<SortOption> sortOptions = List<SortOption>.from(isolateArguments[3]);
     final Map<String, dynamic> result = {};
     final stopwatch = Stopwatch();
 
-    if (sortOptions['Bubble Sort']!) {
-      stopwatch.start();
-      for (int i = 0; i < repeat; i++) {
-        result['bubbleSort'] = Sortierung.bubbleSort(list);
+    for (var option in sortOptions) {
+      if (option.isChecked) {
+        stopwatch.start();
+        for (int i = 0; i < repeat; i++) {
+          result[option.sortKey] = option.sortFunction(List<int>.from(list));
+        }
+        result['${option.sortKey}Time'] = stopwatch.elapsed;
+        stopwatch.reset();
       }
-      result['bubbleSortTime'] = stopwatch.elapsed;
-      stopwatch.reset();
     }
-    if (sortOptions['Selection Sort']!) {
-      stopwatch.start();
-      for (int i = 0; i < repeat; i++) {
-        result['selectionSort'] = Sortierung.selectionSort(list);
-      }
-      result['selectionSortTime'] = stopwatch.elapsed;
-      stopwatch.reset();
-    }
-    if (sortOptions['Insertion Sort']!) {
-      stopwatch.start();
-      for (int i = 0; i < repeat; i++) {
-        result['insertionSort'] = Sortierung.insertionSort(list);
-      }
-      result['insertionSortTime'] = stopwatch.elapsed;
-      stopwatch.reset();
-    }
-    if (sortOptions['Quick Sort']!) {
-      stopwatch.start();
-      for (int i = 0; i < repeat; i++) {
-        result['quickSort'] = Sortierung.quickSort(list);
-      }
-      result['quickSortTime'] = stopwatch.elapsed;
-      stopwatch.reset();
-    }
-    if (sortOptions['Merge Sort']!) {
-      stopwatch.start();
-      for (int i = 0; i < repeat; i++) {
-        result['mergeSort'] = Sortierung.mergeSort(list);
-      }
-      result['mergeSortTime'] = stopwatch.elapsed;
-    }
-
     sendPort.send(result);
   }
 
@@ -394,20 +375,4 @@ class _MyHomePageState extends State<MyHomePage> {
       ],
     );
   }
-}
-
-class SortResult {
-  final String sortName;
-  Duration? duration;
-  List<int>? sortedList;
-  int? rank;
-  int? maxRank;
-
-  SortResult({
-    required this.sortName,
-    this.duration,
-    this.sortedList,
-    this.rank,
-    this.maxRank,
-  });
 }
