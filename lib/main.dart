@@ -271,23 +271,33 @@ class _MyHomePageState extends State<MyHomePage> {
           data['insertionSortTime'],
           data['quickSortTime'],
           data['mergeSortTime'],
-        ]..sort((a, b) => b!.compareTo(a!));
+        ]..sort((a, b) => a == null
+            ? 1
+            : b == null
+                ? -1
+                : b.compareTo(a));
+        final int maxRank = sortedDurations.where((element) => element != null).length;
         setState(() {
           bubbleSortResult.sortedList = data['bubbleSort'];
           bubbleSortResult.duration = data['bubbleSortTime'];
           bubbleSortResult.rank = sortedDurations.indexOf(data['bubbleSortTime']);
+          bubbleSortResult.maxRank = maxRank;
           selectionSortResult.sortedList = data['selectionSort'];
           selectionSortResult.duration = data['selectionSortTime'];
           selectionSortResult.rank = sortedDurations.indexOf(data['selectionSortTime']);
+          selectionSortResult.maxRank = maxRank;
           insertionSortResult.sortedList = data['insertionSort'];
           insertionSortResult.duration = data['insertionSortTime'];
           insertionSortResult.rank = sortedDurations.indexOf(data['insertionSortTime']);
+          insertionSortResult.maxRank = maxRank;
           quickSortResult.sortedList = data['quickSort'];
           quickSortResult.duration = data['quickSortTime'];
           quickSortResult.rank = sortedDurations.indexOf(data['quickSortTime']);
+          quickSortResult.maxRank = maxRank;
           mergeSortResult.sortedList = data['mergeSort'];
           mergeSortResult.duration = data['mergeSortTime'];
           mergeSortResult.rank = sortedDurations.indexOf(data['mergeSortTime']);
+          mergeSortResult.maxRank = maxRank;
           isSorting = false;
         });
       }
@@ -371,7 +381,8 @@ class _MyHomePageState extends State<MyHomePage> {
               if (sortResult.rank != null)
                 for (int i = 0; i < sortResult.rank! + 1; i++) const Icon(Icons.star, color: Colors.amber),
               if (sortResult.rank != null)
-                for (int i = sortResult.rank! + 1; i < 5; i++) const Icon(Icons.star_border, color: Colors.grey),
+                for (int i = sortResult.rank! + 1; i < sortResult.maxRank!; i++)
+                  const Icon(Icons.star_border, color: Colors.grey),
             ],
           ),
         if (sortResult.sortedList != null)
@@ -390,11 +401,13 @@ class SortResult {
   Duration? duration;
   List<int>? sortedList;
   int? rank;
+  int? maxRank;
 
   SortResult({
     required this.sortName,
     this.duration,
     this.sortedList,
     this.rank,
+    this.maxRank,
   });
 }
