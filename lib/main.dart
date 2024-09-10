@@ -36,11 +36,13 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   List<int> list = [];
-  SortResult bubbleSortResult = SortResult(sortName: 'Bubble Sort');
-  SortResult selectionSortResult = SortResult(sortName: 'Selection Sort');
-  SortResult insertionSortResult = SortResult(sortName: 'Insertion Sort');
-  SortResult quickSortResult = SortResult(sortName: 'Quick Sort');
-  SortResult mergeSortResult = SortResult(sortName: 'Merge Sort');
+  List<SortResult> sortResults = [
+    SortResult(sortName: 'Bubble Sort'),
+    SortResult(sortName: 'Selection Sort'),
+    SortResult(sortName: 'Insertion Sort'),
+    SortResult(sortName: 'Quick Sort'),
+    SortResult(sortName: 'Merge Sort'),
+  ];
   final controllerLength = TextEditingController(text: '10');
   final controllerMaxValue = TextEditingController(text: '100');
   final controllerRepeat = TextEditingController(text: '1');
@@ -129,11 +131,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     final int maxValue = (int.tryParse(controllerMaxValue.text) ?? 0) + 1;
                     setState(() {
                       list = Sortierung.generateRandomList(length, maxValue: maxValue);
-                      bubbleSortResult.duration = null;
-                      selectionSortResult.duration = null;
-                      insertionSortResult.duration = null;
-                      quickSortResult.duration = null;
-                      mergeSortResult.duration = null;
+                      _resetSortResults();
                     });
                   },
                   child: const Text('Generate Random Array'),
@@ -175,13 +173,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               : () async {
                                   setState(() {
                                     isSorting = true;
-                                    setState(() {
-                                      bubbleSortResult.duration = null;
-                                      selectionSortResult.duration = null;
-                                      insertionSortResult.duration = null;
-                                      quickSortResult.duration = null;
-                                      mergeSortResult.duration = null;
-                                    });
+                                    _resetSortResults();
                                   });
                                   final repeat = int.tryParse(controllerRepeat.text) ?? 1;
                                   await _startSort(list, repeat, sortOptions);
@@ -216,11 +208,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
-              if (bubbleSortResult.duration != null) _buildResultDisplay(bubbleSortResult),
-              if (selectionSortResult.duration != null) _buildResultDisplay(selectionSortResult),
-              if (insertionSortResult.duration != null) _buildResultDisplay(insertionSortResult),
-              if (quickSortResult.duration != null) _buildResultDisplay(quickSortResult),
-              if (mergeSortResult.duration != null) _buildResultDisplay(mergeSortResult),
+              for (final result in sortResults)
+                if (result.duration != null) _buildResultDisplay(result)
             ],
           ),
         ),
@@ -276,32 +265,43 @@ class _MyHomePageState extends State<MyHomePage> {
             : b == null
                 ? -1
                 : b.compareTo(a));
+
         final int maxRank = sortedDurations.where((element) => element != null).length;
+
+        _updateSortResults(data, sortedDurations, maxRank);
+
         setState(() {
-          bubbleSortResult.sortedList = data['bubbleSort'];
-          bubbleSortResult.duration = data['bubbleSortTime'];
-          bubbleSortResult.rank = sortedDurations.indexOf(data['bubbleSortTime']);
-          bubbleSortResult.maxRank = maxRank;
-          selectionSortResult.sortedList = data['selectionSort'];
-          selectionSortResult.duration = data['selectionSortTime'];
-          selectionSortResult.rank = sortedDurations.indexOf(data['selectionSortTime']);
-          selectionSortResult.maxRank = maxRank;
-          insertionSortResult.sortedList = data['insertionSort'];
-          insertionSortResult.duration = data['insertionSortTime'];
-          insertionSortResult.rank = sortedDurations.indexOf(data['insertionSortTime']);
-          insertionSortResult.maxRank = maxRank;
-          quickSortResult.sortedList = data['quickSort'];
-          quickSortResult.duration = data['quickSortTime'];
-          quickSortResult.rank = sortedDurations.indexOf(data['quickSortTime']);
-          quickSortResult.maxRank = maxRank;
-          mergeSortResult.sortedList = data['mergeSort'];
-          mergeSortResult.duration = data['mergeSortTime'];
-          mergeSortResult.rank = sortedDurations.indexOf(data['mergeSortTime']);
-          mergeSortResult.maxRank = maxRank;
           isSorting = false;
         });
       }
     });
+  }
+
+  void _updateSortResults(Map<String, dynamic> data, List<Duration?> sortedDurations, int maxRank) {
+    List<String> sortKeys = [
+      'bubbleSort',
+      'selectionSort',
+      'insertionSort',
+      'quickSort',
+      'mergeSort',
+    ];
+
+    for (int i = 0; i < sortResults.length; i++) {
+      sortResults[i]
+        ..sortedList = data[sortKeys[i]]
+        ..duration = data['${sortKeys[i]}Time']
+        ..rank = sortedDurations.indexOf(data['${sortKeys[i]}Time'])
+        ..maxRank = maxRank;
+    }
+  }
+
+  void _resetSortResults() {
+    for (var result in sortResults) {
+      result.duration = null;
+      result.sortedList = null;
+      result.rank = null;
+      result.maxRank = null;
+    }
   }
 
   void _cancelSort() {
@@ -378,7 +378,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   : sortResult.duration!.inSeconds == 0
                       ? '${sortResult.sortName}: ${sortResult.duration!.inMilliseconds} ms'
                       : '${sortResult.sortName}: ${sortResult.duration!.inSeconds} s, ${sortResult.duration!.inMilliseconds.remainder(1000)} ms'),
-              if (sortResult.rank != null)
+              if (sortResult.rank != null && sortResult.maxRank! > 1)
                 for (int i = 0; i < sortResult.rank! + 1; i++) const Icon(Icons.star, color: Colors.amber),
               if (sortResult.rank != null)
                 for (int i = sortResult.rank! + 1; i < sortResult.maxRank!; i++)
